@@ -1,8 +1,8 @@
 # Production Dockerfile for Node.js + React Fullstack App
-FROM node:20-alpine
+FROM node:22-slim
 
-# Install build tools required for native C++ modules (better-sqlite3)
-RUN apk add --no-cache python3 make g++ sqlite-dev
+# Install sqlite3 runtime library
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -10,7 +10,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies including devDependencies for vite build
+# Install dependencies
 RUN npm install
 
 # Copy application source code
