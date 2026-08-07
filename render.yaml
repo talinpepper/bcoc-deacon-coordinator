@@ -1,0 +1,18 @@
+# render.yaml - Render Cloud Deployment Configuration
+services:
+  - type: web
+    name: bcoc-deacon-coordinator
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: GEMINI_API_KEY
+        sync: false # Prompts user to enter key in Render Dashboard
+    disk:
+      name: sqlite-data
+      mountPath: /var/data
+      sizeGB: 1

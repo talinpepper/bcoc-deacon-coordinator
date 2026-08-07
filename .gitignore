@@ -1,0 +1,7 @@
+# Git Ignore
+node_modules/
+dist/
+*.sqlite
+.env
+.DS_Store
+scratch/

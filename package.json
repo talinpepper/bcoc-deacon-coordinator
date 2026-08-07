@@ -1,0 +1,29 @@
+{
+  "name": "bcoc-deacon-coordinator",
+  "version": "1.0.0",
+  "description": "BCoC Youth Ministry Deacon Coordinator Web Bot & Dashboard",
+  "main": "server/index.js",
+  "scripts": {
+    "dev:server": "node server/index.js",
+    "dev:client": "vite",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@google/genai": "^2.16.0",
+    "better-sqlite3": "^13.0.3",
+    "canvas-confetti": "^1.9.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "isomorphic-git": "^1.40.2",
+    "lucide-react": "^0.475.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "vite": "^6.4.3"
+  }
+}
