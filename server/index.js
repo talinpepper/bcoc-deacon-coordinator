@@ -3,8 +3,51 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config(); // Load .env variables
 const db = require('./db');
-const { sendToGoogleSheet } = require('./googleDriveSync');
+const { sendToGoogleSheet, fetchFromGoogleSheet } = require('./googleDriveSync');
 const { GoogleGenAI } = require('@google/genai');
+
+// Auto-restore any submissions saved in Google Drive / Sheets back into SQLite on startup
+async function restoreSubmissionsFromGoogleSheet() {
+  try {
+    const rows = await fetchFromGoogleSheet();
+    if (Array.isArray(rows) && rows.length > 0) {
+      for (const row of rows) {
+        if (!row.member_name || !row.cycle_id) continue;
+        const member = db.prepare('SELECT id FROM team_members WHERE name LIKE ?').get(row.member_name);
+        if (!member) continue;
+
+        const cycleId = parseInt(row.cycle_id) || 1;
+        const existing = db.prepare('SELECT id FROM submissions WHERE team_member_id = ? AND cycle_id = ?')
+          .get(member.id, cycleId);
+
+        if (!existing) {
+          db.prepare(`
+            INSERT INTO submissions (
+              team_member_id, cycle_id, general_updates, wins_encouragements,
+              challenges_obstacles, budget_updates, elder_approval_items,
+              prayer_requests, submitted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            member.id,
+            cycleId,
+            row.general_updates || '',
+            row.wins_encouragements || '',
+            row.challenges_obstacles || '',
+            row.budget_updates || '',
+            row.elder_approval_items || '',
+            row.prayer_requests || '',
+            row.submitted_at || new Date().toISOString()
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to auto-restore from Google Sheet:', err);
+  }
+}
+
+// Run restore on startup
+restoreSubmissionsFromGoogleSheet();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
