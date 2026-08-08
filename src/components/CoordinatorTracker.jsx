@@ -18,7 +18,14 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
       const res = await fetch(`/api/cycles/${cycleId}/status`);
       if (res.ok) {
         const data = await res.json();
-        setStatusList(data);
+        // Sort status list alphabetically by last name
+        const sorted = [...data].sort((a, b) => {
+          const lastA = a.member.name.split(' ').slice(-1)[0];
+          const lastB = b.member.name.split(' ').slice(-1)[0];
+          if (lastA !== lastB) return lastA.localeCompare(lastB);
+          return a.member.name.localeCompare(b.member.name);
+        });
+        setStatusList(sorted);
       }
     } catch (err) {
       console.error('Failed to fetch status:', err);
