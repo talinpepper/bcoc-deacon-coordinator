@@ -104,6 +104,18 @@ Only output raw JSON.`;
   }
 });
 
+// 4b. Get existing submission/draft for a specific team member and cycle
+app.get('/api/submissions/:memberId/:cycleId', (req, res) => {
+  const { memberId, cycleId } = req.params;
+  try {
+    const submission = db.prepare('SELECT * FROM submissions WHERE team_member_id = ? AND cycle_id = ?')
+      .get(memberId, cycleId);
+    res.json(submission || null);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 5. Save or update a deacon/minister/coordinator submission
 app.post('/api/submissions', (req, res) => {
   const {
