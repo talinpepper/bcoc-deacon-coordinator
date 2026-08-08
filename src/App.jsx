@@ -299,15 +299,13 @@ export default function App() {
         ) : (
           <>
             {activeTab === 'bot' && (
-              <div className="animate-fade-in glass-panel" style={{ maxWidth: '600px', margin: '3rem auto', padding: '3rem 2rem', textAlign: 'center', border: '1px solid var(--accent-warning)' }}>
-                <div style={{ display: 'inline-flex', padding: '1rem', background: 'rgba(251, 191, 36, 0.15)', borderRadius: '50%', color: 'var(--accent-warning)', marginBottom: '1.25rem' }}>
-                  <Clock size={40} />
-                </div>
-                <h2 style={{ fontSize: '1.75rem', marginBottom: '0.75rem' }}>Survey Submissions Paused</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.6' }}>
-                  The Youth Ministry survey bot is briefly paused for system maintenance. Submissions will re-open shortly!
-                </p>
-              </div>
+              <YouthBot
+                teamMembers={teamMembers.filter(m => m.name.toLowerCase().includes('talin pepper'))}
+                cycles={cycles}
+                onSubmissionComplete={() => {
+                  // Refresh status if needed
+                }}
+              />
             )}
 
             {activeTab === 'tracker' && (
