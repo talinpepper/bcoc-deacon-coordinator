@@ -194,7 +194,7 @@ export default function App() {
         color: 'var(--text-dim)',
         fontSize: '0.85rem'
       }}>
-        BCoC Youth Ministry Deacon Coordinator Tool • Developed for Talin Pepper & Brian Sosebee • Reporting for Elders Carter Mahanay & Scott Barkley
+        BCoC Deacon Coordinator Tool
       </footer>
 
     </div>
