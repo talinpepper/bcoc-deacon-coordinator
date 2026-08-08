@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config(); // Load .env variables
 const db = require('./db');
+const { sendToGoogleSheet } = require('./googleDriveSync');
 const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
@@ -153,6 +154,23 @@ app.post('/api/submissions', (req, res) => {
   try {
     const existing = db.prepare('SELECT id FROM submissions WHERE team_member_id = ? AND cycle_id = ?')
       .get(team_member_id, cycle_id);
+
+    // Dual write to Google Drive Sheet backup
+    try {
+      const member = db.prepare('SELECT name FROM team_members WHERE id = ?').get(team_member_id);
+      sendToGoogleSheet({
+        member_name: member ? member.name : `Member ${team_member_id}`,
+        cycle_id,
+        general_updates,
+        wins_encouragements,
+        challenges_obstacles,
+        budget_updates,
+        elder_approval_items,
+        prayer_requests
+      });
+    } catch (sheetErr) {
+      console.error('Google Sheet sync background error:', sheetErr);
+    }
 
     if (existing) {
       const updateStmt = db.prepare(`
