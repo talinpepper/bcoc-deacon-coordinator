@@ -394,7 +394,15 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
-            {teamMembers.filter(m => m.role !== 'elder').map(member => (
+            {teamMembers
+              .filter(m => m.role !== 'elder')
+              .sort((a, b) => {
+                const lastA = a.name.split(' ').slice(-1)[0];
+                const lastB = b.name.split(' ').slice(-1)[0];
+                if (lastA !== lastB) return lastA.localeCompare(lastB);
+                return a.name.localeCompare(b.name);
+              })
+              .map(member => (
               <button
                 key={member.id}
                 onClick={() => handleSelectMember(member)}
@@ -423,7 +431,10 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
                 }}>
                   <User size={20} />
                 </div>
-                <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{member.name}</div>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '1.05rem' }}>{member.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '2px' }}>{member.sub_role}</div>
+                </div>
               </button>
             ))}
           </div>
