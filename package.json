@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.16.0",
-    "@supabase/supabase-js": "^2.48.1",
+    "@supabase/supabase-js": "^2.112.2",
     "better-sqlite3": "^13.0.3",
     "canvas-confetti": "^1.9.4",
     "cors": "^2.8.5",
