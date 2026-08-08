@@ -431,10 +431,7 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
                 }}>
                   <User size={20} />
                 </div>
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '1.05rem' }}>{member.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '2px' }}>{member.sub_role}</div>
-                </div>
+                <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{member.name}</div>
               </button>
             ))}
           </div>
