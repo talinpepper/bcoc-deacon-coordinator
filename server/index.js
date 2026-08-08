@@ -116,6 +116,17 @@ app.get('/api/submissions/:memberId/:cycleId', (req, res) => {
   }
 });
 
+// 4c. Delete/Restart submission for a specific team member and cycle
+app.delete('/api/submissions/:memberId/:cycleId', (req, res) => {
+  const { memberId, cycleId } = req.params;
+  try {
+    db.prepare('DELETE FROM submissions WHERE team_member_id = ? AND cycle_id = ?').run(memberId, cycleId);
+    res.json({ message: 'Submission reset successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 5. Save or update a deacon/minister/coordinator submission
 app.post('/api/submissions', (req, res) => {
   const {
