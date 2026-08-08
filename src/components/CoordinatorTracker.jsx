@@ -137,9 +137,6 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                   <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>{member.name}</h3>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', fontWeight: '500' }}>
-                      {member.sub_role}
-                    </span>
                   </div>
 
                   {submitted ? (
