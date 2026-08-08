@@ -52,7 +52,7 @@ app.get('/api/cycles', (req, res) => {
 app.get('/api/cycles/:cycleId/status', (req, res) => {
   const { cycleId } = req.params;
   try {
-    const team = db.prepare("SELECT * FROM team_members WHERE role IN ('coordinator', 'minister', 'deacon') ORDER BY role DESC, name ASC").all();
+    const team = db.prepare("SELECT * FROM team_members WHERE role != 'elder' ORDER BY name ASC").all();
     const submissions = db.prepare('SELECT * FROM submissions WHERE cycle_id = ?').all(cycleId);
 
     const submissionMap = new Map();
@@ -217,7 +217,7 @@ app.get('/api/cycles/:cycleId/summary', async (req, res) => {
       ORDER BY t.role DESC, t.name ASC
     `).all(cycleId);
 
-    const totalExpected = db.prepare("SELECT COUNT(*) as cnt FROM team_members WHERE role IN ('coordinator', 'minister', 'deacon')").get().cnt;
+    const totalExpected = db.prepare("SELECT COUNT(*) as cnt FROM team_members WHERE role != 'elder'").get().cnt;
 
     let aiPolishedSummary = null;
 
