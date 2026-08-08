@@ -23,10 +23,15 @@ if (geminiApiKey && geminiApiKey.trim() !== '') {
 
 // API Routes
 
-// 1. Get all team members (coordinators, ministers, deacons, elders)
+// 1. Get all team members (coordinators, ministers, deacons, elders, spouses)
 app.get('/api/team', (req, res) => {
   try {
-    const team = db.prepare('SELECT * FROM team_members ORDER BY role DESC, name ASC').all();
+    const team = db.prepare(`
+      SELECT *, 
+        substr(name, instr(name, ' ') + 1) as last_name
+      FROM team_members 
+      ORDER BY last_name ASC, role DESC, name ASC
+    `).all();
     res.json(team);
   } catch (error) {
     res.status(500).json({ error: error.message });
