@@ -300,7 +300,7 @@ export default function App() {
           <>
             {activeTab === 'bot' && (
               <YouthBot
-                teamMembers={teamMembers.filter(m => m.name.toLowerCase().includes('talin pepper'))}
+                teamMembers={teamMembers}
                 cycles={cycles}
                 onSubmissionComplete={() => {
                   // Refresh status if needed
