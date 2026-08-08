@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, Bot, CheckCircle2, ShieldAlert, Sparkles, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, User, Bot, CheckCircle2, ShieldAlert, Sparkles, MessageSquare, Loader2, Save } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const QUESTIONS = [
@@ -53,6 +53,8 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
   const [chatLog, setChatLog] = useState([]);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [draftSavedMsg, setDraftSavedMsg] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
   const chatEndRef = useRef(null);
@@ -68,23 +70,131 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLog]);
 
-  const handleSelectMember = (member) => {
+  const handleSelectMember = async (member) => {
     setSelectedMember(member);
-    const firstQ = QUESTIONS[0];
-    setChatLog([
-      {
-        sender: 'bot',
-        text: `Hello ${member.name}! 👋 I am the BCoC Youth Ministry Coordinator Assistant serving alongside Talin Pepper.`
-      },
-      {
-        sender: 'bot',
-        text: `We are preparing our brief 5-10 minute presentation for the elders for the ${activeCycle ? activeCycle.title : 'upcoming meeting'}. Thank you for taking 2 minutes to keep your plans and needs visible!`
-      },
-      {
-        sender: 'bot',
-        text: `**${firstQ.title}**\n${firstQ.subtitle}`
+    setIsCompleted(false);
+
+    // Check if there's an existing draft/submission in database
+    let existingData = null;
+    if (activeCycle) {
+      try {
+        const res = await fetch(`/api/submissions/${member.id}/${activeCycle.id}`);
+        if (res.ok) {
+          existingData = await res.json();
+        }
+      } catch (err) {
+        console.error('Error fetching existing submission:', err);
       }
-    ]);
+    }
+
+    if (existingData) {
+      setAnswers({
+        general_updates: existingData.general_updates || '',
+        wins_encouragements: existingData.wins_encouragements || '',
+        challenges_obstacles: existingData.challenges_obstacles || '',
+        budget_updates: existingData.budget_updates || '',
+        elder_approval_items: existingData.elder_approval_items || '',
+        prayer_requests: existingData.prayer_requests || ''
+      });
+
+      // Build initial chat log restoring existing answers
+      const restoredLog = [
+        {
+          sender: 'bot',
+          text: `Welcome back, ${member.name}! 👋 I retrieved your saved updates for the ${activeCycle ? activeCycle.title : 'Elders Report'}.`
+        }
+      ];
+
+      let lastAnsweredIdx = -1;
+      QUESTIONS.forEach((q, idx) => {
+        const val = existingData[q.key];
+        if (val && val.trim() !== '') {
+          lastAnsweredIdx = idx;
+          restoredLog.push({
+            sender: 'bot',
+            text: `**${q.title}**\n${q.subtitle}`
+          });
+          restoredLog.push({
+            sender: 'user',
+            text: val
+          });
+        }
+      });
+
+      const nextIdx = lastAnsweredIdx + 1;
+      if (nextIdx < QUESTIONS.length) {
+        const nextQ = QUESTIONS[nextIdx];
+        restoredLog.push({
+          sender: 'bot',
+          text: `Continuing with question ${nextIdx + 1} of ${QUESTIONS.length}:\n**${nextQ.title}**\n${nextQ.subtitle}`
+        });
+        setCurrentQuestionIndex(nextIdx);
+      } else {
+        setIsCompleted(true);
+        restoredLog.push({
+          sender: 'bot',
+          text: `🎉 You have previously completed your submission for this report! You can edit any answer below or save updates anytime.`
+        });
+        setCurrentQuestionIndex(QUESTIONS.length);
+      }
+      setChatLog(restoredLog);
+    } else {
+      // New survey
+      const firstQ = QUESTIONS[0];
+      setCurrentQuestionIndex(0);
+      setAnswers({
+        general_updates: '',
+        wins_encouragements: '',
+        challenges_obstacles: '',
+        budget_updates: '',
+        elder_approval_items: '',
+        prayer_requests: ''
+      });
+      setChatLog([
+        {
+          sender: 'bot',
+          text: `Hello ${member.name}! 👋 I am the BCoC Youth Ministry Coordinator Assistant serving alongside Talin Pepper.`
+        },
+        {
+          sender: 'bot',
+          text: `We are preparing our brief 5-10 minute presentation for the elders for the ${activeCycle ? activeCycle.title : 'upcoming meeting'}. Thank you for taking 5-7 minutes to keep your plans and needs visible!`
+        },
+        {
+          sender: 'bot',
+          text: `**${firstQ.title}**\n${firstQ.subtitle}`
+        }
+      ]);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedMember || !activeCycle) return;
+    setIsDraftSaving(true);
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team_member_id: selectedMember.id,
+          cycle_id: activeCycle.id,
+          ...answers,
+          requires_elder_escalation: Boolean(
+            answers.elder_approval_items && 
+            answers.elder_approval_items.trim() !== '' && 
+            answers.elder_approval_items.toLowerCase() !== 'none'
+          )
+        })
+      });
+      if (response.ok) {
+        setDraftSavedMsg(true);
+        setTimeout(() => setDraftSavedMsg(false), 3000);
+        if (onSubmissionComplete) onSubmissionComplete();
+      }
+    } catch (err) {
+      console.error('Draft save failed:', err);
+    } finally {
+      setIsDraftSaving(false);
+    }
   };
 
   const handleSendAnswer = async () => {
@@ -93,7 +203,6 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
     const answerText = currentInput.trim();
     const currentQ = QUESTIONS[currentQuestionIndex];
 
-    // Append answer to existing answer if responding to follow-up
     const existingVal = answers[currentQ.key] || '';
     const updatedVal = existingVal ? `${existingVal}\n\n[Clarification]: ${answerText}` : answerText;
 
@@ -111,14 +220,33 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
     setChatLog(updatedLog);
     setCurrentInput('');
 
-    // If currently answering a follow-up, proceed to next main question
+    // Auto-save draft to database after every answer
+    try {
+      await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team_member_id: selectedMember.id,
+          cycle_id: activeCycle.id,
+          ...updatedAnswers,
+          requires_elder_escalation: Boolean(
+            updatedAnswers.elder_approval_items && 
+            updatedAnswers.elder_approval_items.trim() !== '' && 
+            updatedAnswers.elder_approval_items.toLowerCase() !== 'none'
+          )
+        })
+      });
+      if (onSubmissionComplete) onSubmissionComplete();
+    } catch (e) {
+      console.error('Auto-save error:', e);
+    }
+
     if (isAskingFollowUp) {
       setIsAskingFollowUp(false);
       proceedToNextQuestion(currentQuestionIndex + 1, updatedLog, updatedAnswers);
       return;
     }
 
-    // Check with AI if clarifying follow-up would add value
     setIsAiThinking(true);
     try {
       const res = await fetch('/api/ai/followup', {
@@ -153,7 +281,6 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
       setIsAiThinking(false);
     }
 
-    // No follow-up needed, move to next main question
     proceedToNextQuestion(currentQuestionIndex + 1, updatedLog, updatedAnswers);
   };
 
@@ -170,7 +297,6 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
       setCurrentQuestionIndex(nextIndex);
       setChatLog(newLog);
     } else {
-      // Finished all questions
       setCurrentQuestionIndex(nextIndex);
       submitFinalAnswers(finalAnswers, log);
     }
@@ -306,13 +432,25 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
             </div>
           </div>
 
-          <button
-            onClick={() => setSelectedMember(null)}
-            className="btn btn-secondary"
-            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-          >
-            Change Name
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={handleSaveDraft}
+              disabled={isDraftSaving}
+              className="btn btn-secondary"
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              title="Save progress now to finish later"
+            >
+              <Save size={15} /> {draftSavedMsg ? 'Saved!' : 'Save Progress'}
+            </button>
+
+            <button
+              onClick={() => setSelectedMember(null)}
+              className="btn btn-secondary"
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            >
+              Change Name
+            </button>
+          </div>
         </div>
 
         {/* Chat Messages Log */}
@@ -421,7 +559,7 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
               </button>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.5rem', textAlign: 'center' }}>
-              Tip: Press Enter to submit. Type "None" if you don't have updates for a specific question.
+              Tip: Press Enter to submit. Your progress saves automatically after each answer!
             </p>
           </div>
         ) : (
@@ -432,7 +570,7 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
             background: 'rgba(52, 211, 153, 0.1)'
           }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-success)', fontWeight: '600' }}>
-              <CheckCircle2 size={20} /> Submission Complete!
+              <CheckCircle2 size={20} /> Submission Complete & Saved!
             </div>
           </div>
         )}
