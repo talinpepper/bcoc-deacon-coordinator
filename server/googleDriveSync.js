@@ -37,4 +37,38 @@ function sendToGoogleSheet(data) {
   });
 }
 
-module.exports = { sendToGoogleSheet };
+function fetchFromGoogleSheet() {
+  return new Promise((resolve) => {
+    https.get(GOOGLE_SCRIPT_URL, res => {
+      let data = '';
+      if (res.statusCode === 302 || res.statusCode === 301) {
+        if (res.headers.location) {
+          https.get(res.headers.location, redirectRes => {
+            let body = '';
+            redirectRes.on('data', chunk => body += chunk);
+            redirectRes.on('end', () => {
+              try {
+                resolve(JSON.parse(body));
+              } catch (e) {
+                resolve([]);
+              }
+            });
+          }).on('error', () => resolve([]));
+        } else {
+          resolve([]);
+        }
+      } else {
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            resolve([]);
+          }
+        });
+      }
+    }).on('error', () => resolve([]));
+  });
+}
+
+module.exports = { sendToGoogleSheet, fetchFromGoogleSheet };
