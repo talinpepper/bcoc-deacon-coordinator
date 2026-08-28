@@ -65,7 +65,7 @@ export default function ElderPresentation({ selectedCycle }) {
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Target Elders Meeting</div>
           <div style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>
-            {cycle ? cycle.title : 'August 26th Report'}
+            {cycle ? cycle.title : 'December Presentation Report'}
           </div>
         </div>
 
