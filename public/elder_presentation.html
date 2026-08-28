@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BCoC Youth Ministry - Elders Presentation</title>
+  <!-- Google Fonts: Montserrat & Open Sans matching burlesoncoc.com -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bcoc-navy: #0B2545;
+      --bcoc-blue: #134074;
+      --bcoc-accent: #EE6C4D;
+      --bcoc-gold: #D4AF37;
+      --bcoc-bg-light: #F4F6F9;
+      --bcoc-card-bg: #FFFFFF;
+      --bcoc-text-dark: #1D2A44;
+      --bcoc-text-muted: #5A6B82;
+      --shadow-sm: 0 4px 6px -1px rgba(11, 37, 69, 0.05), 0 2px 4px -1px rgba(11, 37, 69, 0.03);
+      --shadow-md: 0 10px 25px -5px rgba(11, 37, 69, 0.1), 0 8px 10px -6px rgba(11, 37, 69, 0.05);
+      --shadow-lg: 0 20px 30px -10px rgba(11, 37, 69, 0.15);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background-color: #081B33;
+      color: var(--bcoc-text-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    /* Top Utility Bar */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 65px;
+      background: rgba(11, 37, 69, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 2px solid var(--bcoc-accent);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      color: #FFFFFF;
+    }
+
+    .brand-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title span {
+      color: var(--bcoc-accent);
+    }
+
+    .presentation-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-btn:hover {
+      background: var(--bcoc-accent);
+      border-color: var(--bcoc-accent);
+      transform: translateY(-1px);
+    }
+
+    .slide-counter {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      min-width: 70px;
+      text-align: center;
+    }
+
+    /* Deck View Container */
+    .deck-container {
+      width: 100%;
+      max-width: 1200px;
+      height: calc(100vh - 120px);
+      max-height: 750px;
+      margin-top: 65px;
+      position: relative;
+      padding: 1rem;
+    }
+
+    .slide {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      right: 1rem;
+      bottom: 1rem;
+      background: var(--bcoc-bg-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(20px) scale(0.98);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Header Banner for Slides */
+    .slide-header {
+      background: linear-gradient(135deg, var(--bcoc-navy) 0%, var(--bcoc-blue) 100%);
+      color: #FFFFFF;
+      padding: 1.75rem 2.5rem;
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .slide-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--bcoc-accent);
+    }
+
+    .slide-title-group h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .slide-title-group p {
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.75);
+    }
+
+    .slide-badge {
+      background: rgba(238, 108, 77, 0.2);
+      border: 1px solid var(--bcoc-accent);
+      color: var(--bcoc-accent);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Slide Content Layout */
+    .slide-body {
+      padding: 2.5rem;
+      flex: 1;
+      display: flex;
+      gap: 2rem;
+    }
+
+    .slide-main-content {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .slide-media-content {
+      flex: 0.8;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    /* Cards & Grids */
+    .content-card {
+      background: var(--bcoc-card-bg);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(19, 64, 116, 0.08);
+      border-left: 5px solid var(--bcoc-blue);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .content-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .content-card.accent-border {
+      border-left-color: var(--bcoc-accent);
+    }
+
+    .content-card h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.15rem;
+      color: var(--bcoc-navy);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .content-card p {
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: var(--bcoc-text-muted);
+    }
+
+    /* Presentation Images */
+    .photo-frame {
+      position: relative;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      border: 4px solid #FFFFFF;
+      background: var(--bcoc-navy);
+    }
+
+    .photo-frame img {
+      width: 100%;
+      height: 100%;
+      max-height: 380px;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.5s ease;
+    }
+
+    .photo-frame:hover img {
+      transform: scale(1.04);
+    }
+
+    .photo-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(11, 37, 69, 0.85));
+      color: #FFFFFF;
+      padding: 20px 15px 10px;
+      font-size: 0.85rem;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* Specific Layout: Title Slide */
+    .slide-title-hero {
+      background: linear-gradient(135deg, rgba(11, 37, 69, 0.95) 0%, rgba(19, 64, 116, 0.9) 100%), url('images/summer3.jpg');
+      background-size: cover;
+      background-position: center;
+      color: #FFFFFF;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+
+    .hero-badge {
+      background: var(--bcoc-accent);
+      color: #FFFFFF;
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+    }
+
+    .hero-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      color: #FFFFFF;
+    }
+
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: rgba(255, 255, 255, 0.85);
+      max-width: 700px;
+      margin: 0 auto 2.5rem;
+      font-weight: 400;
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 1.2rem 2.5rem;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .meta-item {
+      text-align: left;
+    }
+
+    .meta-item label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--bcoc-accent);
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .meta-item value {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    /* Decision Table */
+    .decision-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: #FFFFFF;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(19, 64, 116, 0.1);
+    }
+
+    .decision-table th {
+      background: var(--bcoc-navy);
+      color: #FFFFFF;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.95rem;
+      padding: 1rem 1.25rem;
+      text-align: left;
+    }
+
+    .decision-table td {
+      padding: 1.25rem;
+      border-bottom: 1px solid rgba(19, 64, 116, 0.08);
+      font-size: 0.95rem;
+      color: var(--bcoc-text-dark);
+      vertical-align: top;
+    }
+
+    .decision-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .topic-pill {
+      display: inline-block;
+      background: rgba(238, 108, 77, 0.15);
+      color: var(--bcoc-accent);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Prayer List */
+    .prayer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .prayer-item {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      background: #FFFFFF;
+      padding: 1.25rem 1.5rem;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--bcoc-gold);
+    }
+
+    .prayer-icon {
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--bcoc-navy);
+      font-size: 1.2rem;
+      padding: 10px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .prayer-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--bcoc-text-dark);
+    }
+
+    /* Quick Nav Footer */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 45px;
+      background: #051324;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 100;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dot-nav {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .dot-nav.active {
+      background: var(--bcoc-accent);
+      transform: scale(1.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar Controls -->
+  <div class="top-bar">
+    <div class="brand-title">
+      Burleson Church of Christ <span>• Youth Ministry</span>
+    </div>
+
+    <div class="presentation-controls">
+      <button class="nav-btn" onclick="prevSlide()">‹ Prev</button>
+      <div class="slide-counter" id="slideCounter">1 / 6</div>
+      <button class="nav-btn" onclick="nextSlide()">Next ›</button>
+    </div>
+  </div>
+
+  <!-- Presentation Deck Container -->
+  <div class="deck-container">
+
+    <!-- SLIDE 1: Title Hero -->
+    <div class="slide slide-title-hero active" id="slide-1">
+      <div class="hero-badge">Elder Presentation</div>
+      <h1 class="hero-title">BCOC Youth Ministry Update</h1>
+      <p class="hero-subtitle">Summer Highlights, Fall Launch & Strategic Leadership Focus</p>
+
+      <div class="hero-meta">
+        <div class="meta-item">
+          <label>Meeting Date</label>
+          <value>August 26th</value>
+        </div>
+        <div class="meta-item">
+          <label>Prepared By</label>
+          <value>Talin Pepper</value>
+        </div>
+        <div class="meta-item">
+          <label>Ministry Area</label>
+          <value>Youth & Family</value>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: Executive Summary & Key Wins -->
+    <div class="slide" id="slide-2">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>1. Executive Summary & Key Wins</h2>
+          <p>Fruitfulness, spiritual growth, and momentum across our youth ministry</p>
+        </div>
+        <div class="slide-badge">Section 1</div>
+      </div>
+
+      <div class="slide-body">
+        <div class="slide-main-content">
+          <div class="content-card">
+            <h3>🌟 Internship Program Impact</h3>
+            <p>Our students thoroughly enjoyed connecting with this summer’s interns, noting their relatability and effective engagement.</p>
+          </div>
+
+          <div class="content-card">
+            <h3>🙌 Junior High Leadership & Growth</h3>
+            <p>Junior High Youth Minister Dylan Holland continues to build deep trust, love, and respect with our students. There is a large incoming 6th Grade class.</p>
+          </div>
+
+          <div class="content-card">
+            <h3>💡 Classroom Engagement Strategies</h3>
+            <p>Direct, kind engagement methods have noticeably increased student attention and participation during classes.</p>
+          </div>
+
+          <div class="content-card accent-border">
+            <h3>🔥 Student Leadership Team (SLT) Launch</h3>
+            <p>The SLT held its inaugural meeting on Sunday, August 23rd with full attendance. The team is focusing on outreach to students on the fringe and taking direct ownership of planning the Fall Retreat.</p>
+          </div>
+        </div>
+
+        <div class="slide-media-content">
+          <div class="photo-frame">
+            <img src="/images/summer1.jpg" alt="Summer VBS & Youth Mentoring" />
+            <div class="photo-caption">Summer Mentoring & Youth Engagement</div>
+          </div>
+          <div class="content-card" style="padding: 1rem; text-align: center;">
+            <p style="font-size: 0.85rem; font-weight: 600; color: var(--bcoc-navy);">
+              "Camp, the Impact trip, and summer events gave students a strong sense of belonging and spiritual growth."
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: Major Initiatives & Upcoming Schedule -->
+    <div class="slide" id="slide-3">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>2. Major Initiatives & Upcoming Schedule</h2>
+          <p>Intentional small-group discipleship and strategic fall scheduling</p>
+        </div>
+        <div class="slide-badge">Section 2</div>
+      </div>
+
+      <div class="slide-body">
+        <div class="slide-main-content">
+          <div class="content-card accent-border">
+            <h3>💬 Cell Groups Launch (Wednesday, August 26th)</h3>
+            <p>Midweek small groups split by age and gender, led by dedicated adult leaders, focused on building year-long mentoring relationships.</p>
+          </div>
+
+          <div class="content-card">
+            <h3>📅 Parent & Student Annual Meeting (September 13th)</h3>
+            <p>Meeting to distribute full academic year calendars and detail upcoming expectations for parents and families.</p>
+          </div>
+
+          <div class="content-card">
+            <h3>🍂 Fall Retreat Planning</h3>
+            <p>SLT-led high school retreat is planned for November. Junior high fall retreat is planned to be combined with other area junior high groups to maximize fellowship and community.</p>
+          </div>
+
+          <div class="content-card">
+            <h3>📋 Vision & Calendar Planning</h3>
+            <p>Ongoing youth ministry team alignment around the <em>Mission Vision for Youth In Family</em> resource and annual calendar scheduling.</p>
+          </div>
+        </div>
+
+        <div class="slide-media-content">
+          <div class="photo-frame">
+            <img src="/images/summer2.jpg" alt="Impact Trip Group Photo" />
+            <div class="photo-caption">Impact Summer Trip Fellowship</div>
+          </div>
+          <div class="photo-frame">
+            <img src="/images/summer4.jpg" alt="Home Gathering Fellowship" />
+            <div class="photo-caption">Student Discipleship & Small Groups</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: Key Hurdles & Operational Challenges -->
+    <div class="slide" id="slide-4">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>3. Key Hurdles & Operational Challenges</h2>
+          <p>Ensuring our leadership team and volunteers operate effectively</p>
+        </div>
+        <div class="slide-badge">Section 3</div>
+      </div>
+
+      <div class="slide-body">
+        <div class="slide-main-content">
+          <div class="content-card">
+            <h3>📅 Volunteer Planning & Advanced Notice</h3>
+            <p>Using digital tools to assist with deacon and volunteer coordination for youth events to better accommodate busy personal and family calendars.</p>
+          </div>
+
+          <div class="content-card accent-border">
+            <h3>🎓 Older Student Engagement</h3>
+            <p>Addressing participation drops among upperclassmen (juniors and seniors) following lower attendance at summer events like Bandina.</p>
+          </div>
+
+          <div class="content-card">
+            <h3>🏡 Volunteer Season-of-Life Demands</h3>
+            <p>Supporting team members navigating busy work and family commitments (e.g., high school and college-aged children).</p>
+          </div>
+        </div>
+
+        <div class="slide-media-content">
+          <div class="photo-frame" style="height: 100%; max-height: 420px;">
+            <img src="/images/summer3.jpg" alt="Youth Group Trip" />
+            <div class="photo-caption">Fostering Strong Community Connections</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: Decisions & Requests -->
+    <div class="slide" id="slide-5">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>4. Guidance & Decisions Requested</h2>
+          <p>Priority items brought to the Elders for discussion and guidance</p>
+        </div>
+        <div class="slide-badge">Section 4</div>
+      </div>
+
+      <div class="slide-body" style="flex-direction: column;">
+        <table class="decision-table">
+          <thead>
+            <tr>
+              <th style="width: 32%;">Topic / Request</th>
+              <th>Details & Context</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="topic-pill">Nicaragua Mission Trip Funding</span>
+              </td>
+              <td>
+                Evaluating potential congregational financial support to offset costs and make this mission trip accessible to more students.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <span class="topic-pill">Youth Transportation Vans</span>
+              </td>
+              <td>
+                Initiating discussions regarding replacement or new transportation vans to ensure reliability, safety, and adequate seating capacity for youth trips.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display: flex; gap: 1.5rem; margin-top: 1rem;">
+          <div class="photo-frame" style="flex: 1; height: 220px;">
+            <img src="/images/summer5.jpg" alt="Summer Lake Event" />
+            <div class="photo-caption">Summer Lake Day Fellowship</div>
+          </div>
+          <div class="content-card" style="flex: 1; display: flex; flex-direction: column; justify-content: center; background: #FFFFFF;">
+            <h3 style="color: var(--bcoc-accent);">💡 Strategic Vision Goal</h3>
+            <p>Providing reliable transport and mission support allows our youth to serve broader communities while fostering lifelong faith commitments.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: Prayer Requests -->
+    <div class="slide" id="slide-6">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>5. Ministry & Family Prayer Requests</h2>
+          <p>Lifting our leadership, students, and families in prayer</p>
+        </div>
+        <div class="slide-badge">Section 5</div>
+      </div>
+
+      <div class="slide-body">
+        <div class="slide-main-content" style="flex: 1;">
+          <div class="prayer-list">
+            <div class="prayer-item">
+              <div class="prayer-icon">🙏</div>
+              <div class="prayer-text">
+                <strong>Wisdom & Unity:</strong> Pray for wisdom, unity, and strength for all ministers, deacons, and spouses as we lead and mentor our youth.
+              </div>
+            </div>
+
+            <div class="prayer-item">
+              <div class="prayer-icon">👑</div>
+              <div class="prayer-text">
+                <strong>Servant Leadership:</strong> Pray that Student Leadership Team members grow as servant leaders who actively seek out, sacrifice for, and include students on the fringe.
+              </div>
+            </div>
+
+            <div class="prayer-item">
+              <div class="prayer-icon">🔥</div>
+              <div class="prayer-text">
+                <strong>Spiritual Enthusiasm:</strong> Pray for spiritual growth and renewed enthusiasm, especially among our high school upperclassmen.
+              </div>
+            </div>
+
+            <div class="prayer-item">
+              <div class="prayer-icon">🤝</div>
+              <div class="prayer-text">
+                <strong>Volunteer Strength:</strong> Pray for smooth collaboration, advanced planning, and strength for volunteers balancing personal life seasons with ministry commitments.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Dot Navigation -->
+  <div class="bottom-bar">
+    <div class="dot-nav active" onclick="goToSlide(1)"></div>
+    <div class="dot-nav" onclick="goToSlide(2)"></div>
+    <div class="dot-nav" onclick="goToSlide(3)"></div>
+    <div class="dot-nav" onclick="goToSlide(4)"></div>
+    <div class="dot-nav" onclick="goToSlide(5)"></div>
+    <div class="dot-nav" onclick="goToSlide(6)"></div>
+  </div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 6;
+
+    function updatePresentation() {
+      // Hide all slides
+      for (let i = 1; i <= totalSlides; i++) {
+        const slide = document.getElementById(`slide-${i}`);
+        if (slide) slide.classList.remove('active');
+      }
+
+      // Show active slide
+      const activeSlide = document.getElementById(`slide-${currentSlide}`);
+      if (activeSlide) activeSlide.classList.add('active');
+
+      // Update counter
+      document.getElementById('slideCounter').innerText = `${currentSlide} / ${totalSlides}`;
+
+      // Update dots
+      const dots = document.querySelectorAll('.dot-nav');
+      dots.forEach((dot, idx) => {
+        if (idx + 1 === currentSlide) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updatePresentation();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updatePresentation();
+      }
+    }
+
+    function goToSlide(slideNum) {
+      currentSlide = slideNum;
+      updatePresentation();
+    }
+
+    // Keyboard Arrow Keys Navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Space') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+  </script>
+
+</body>
+</html>

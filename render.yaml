@@ -12,6 +12,8 @@ services:
         value: 10000
       - key: GEMINI_API_KEY
         sync: false # Prompts user to enter key in Render Dashboard
+      - key: DATA_DIR
+        value: /var/data
     disk:
       name: sqlite-data
       mountPath: /var/data

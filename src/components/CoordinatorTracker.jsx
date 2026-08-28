@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, MessageSquare, CheckCircle2, Clock, AlertTriangle, Copy, ExternalLink } from 'lucide-react';
+import { Phone, MessageSquare, CheckCircle2, Clock, AlertTriangle, Copy, Send, Users } from 'lucide-react';
 
 export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChange, onRefresh }) {
   const [statusList, setStatusList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState(null);
+  const [allCopied, setAllCopied] = useState(false);
 
   useEffect(() => {
     if (selectedCycle) {
@@ -18,7 +19,14 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
       const res = await fetch(`/api/cycles/${cycleId}/status`);
       if (res.ok) {
         const data = await res.json();
-        setStatusList(data);
+        // Sort status list alphabetically by last name (matching Deacon Survey Bot)
+        const sorted = [...data].sort((a, b) => {
+          const lastA = a.member.name.split(' ').slice(-1)[0];
+          const lastB = b.member.name.split(' ').slice(-1)[0];
+          if (lastA !== lastB) return lastA.localeCompare(lastB);
+          return a.member.name.localeCompare(b.member.name);
+        });
+        setStatusList(sorted);
       }
     } catch (err) {
       console.error('Failed to fetch status:', err);
@@ -27,28 +35,48 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
     }
   };
 
-  const generateSmsLink = (member) => {
+  const getSmsText = (memberName) => {
     const appUrl = window.location.origin;
-    const message = `Hey ${member.name.split(' ')[0]}! Hope you're doing well. As we prepare for our Youth Ministry report for the elders for the 26th, could you take 2 minutes to share a quick update on your area here? ${appUrl}\n\nThanks for all you do! - Talin`;
-    
-    // Encodes SMS uri for native mobile messages app
+    const firstName = memberName ? memberName.split(' ')[0] : 'there';
+    return `Hey ${firstName}! Hope you're doing well. As we prepare for our Youth Ministry report for the elders, could you take 2 minutes to share a quick update on your area here? ${appUrl}\n\nThanks for all you do! - Talin`;
+  };
+
+  const generateSmsLink = (member) => {
+    const message = getSmsText(member.name);
     const encodedMsg = encodeURIComponent(message);
     const cleanPhone = member.phone.replace(/[^0-9]/g, '');
     return `sms:${cleanPhone}?body=${encodedMsg}`;
   };
 
   const handleCopySms = (member, id) => {
-    const appUrl = window.location.origin;
-    const message = `Hey ${member.name.split(' ')[0]}! Hope you're doing well. As we prepare for our Youth Ministry report for the elders for the 26th, could you take 2 minutes to share a quick update on your area here? ${appUrl}\n\nThanks for all you do! - Talin`;
-    
+    const message = getSmsText(member.name);
     navigator.clipboard.writeText(message);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2500);
   };
 
+  // Group SMS link to open messaging app with all pending team members' phone numbers
+  const generateSmsAllPendingLink = () => {
+    const pendingList = statusList.filter(s => !s.submitted);
+    const phones = pendingList.map(s => s.member.phone.replace(/[^0-9]/g, '')).filter(Boolean).join(',');
+    const message = `Hey team! As we prepare our Youth Ministry presentation for the elders, please take 2-3 minutes to submit your brief updates here: ${window.location.origin}\n\nThanks so much! - Talin`;
+    const encodedMsg = encodeURIComponent(message);
+    
+    // iOS and Android support comma or semicolon separated numbers
+    return `sms:${phones}?body=${encodedMsg}`;
+  };
+
+  const handleCopyGroupReminder = () => {
+    const message = `Hey team! As we prepare our Youth Ministry presentation for the elders, please take 2-3 minutes to submit your brief updates here: ${window.location.origin}\n\nThanks so much! - Talin`;
+    navigator.clipboard.writeText(message);
+    setAllCopied(true);
+    setTimeout(() => setAllCopied(false), 2500);
+  };
+
   const totalSubmitted = statusList.filter(s => s.submitted).length;
   const totalExpected = statusList.length;
   const progressPercent = totalExpected > 0 ? Math.round((totalSubmitted / totalExpected) * 100) : 0;
+  const pendingCount = totalExpected - totalSubmitted;
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -58,7 +86,7 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
         <div>
           <h2 style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>Youth Ministry Team Progress Tracker</h2>
           <p style={{ color: 'var(--text-muted)' }}>
-            Track submissions and send 1-click SMS reminders to Mason, Dylan, and your Youth Deacons.
+            Track survey submissions and send 1-click SMS reminders to your team & wives.
           </p>
         </div>
 
@@ -88,13 +116,37 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
         </div>
       </div>
 
-      {/* Progress Bar Card */}
-      <div className="glass-panel" style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>Completion Progress for {selectedCycle ? selectedCycle.title : ''}</span>
-          <span style={{ color: 'var(--accent-primary)', fontWeight: '700', fontSize: '1.2rem' }}>
-            {totalSubmitted} of {totalExpected} Submitted ({progressPercent}%)
-          </span>
+      {/* Progress Bar & Mass Message Actions Card */}
+      <div className="glass-panel" style={{ padding: '1.75rem', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+          <div>
+            <span style={{ fontWeight: '600', fontSize: '1.15rem' }}>Completion Progress for {selectedCycle ? selectedCycle.title : ''}</span>
+            <div style={{ color: 'var(--accent-primary)', fontWeight: '700', fontSize: '1.25rem', marginTop: '0.2rem' }}>
+              {totalSubmitted} of {totalExpected} Submitted ({progressPercent}%)
+            </div>
+          </div>
+
+          {/* Mass Messaging Buttons */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <a
+              href={generateSmsAllPendingLink()}
+              className="btn btn-primary"
+              style={{ padding: '0.65rem 1.1rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              title="Open text messaging app to send a group reminder to all pending members"
+            >
+              <Send size={16} /> 1-Click Message All Pending ({pendingCount})
+            </a>
+
+            <button
+              onClick={handleCopyGroupReminder}
+              className="btn btn-secondary"
+              style={{ padding: '0.65rem 1rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              title="Copy group reminder message text to clipboard"
+            >
+              {allCopied ? <CheckCircle2 size={16} color="var(--accent-success)" /> : <Copy size={16} />}
+              {allCopied ? 'Copied Message!' : 'Copy Group Text'}
+            </button>
+          </div>
         </div>
 
         <div style={{ height: '12px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
@@ -107,21 +159,21 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
         </div>
       </div>
 
-      {/* Team Cards Grid */}
+      {/* Team Cards Grid - Alphabetized by Last Name & Paired Couples */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading progress data...</div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading team progress data...</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '1.25rem' }}>
           {statusList.map(({ member, submitted, submission }) => (
             <div
               key={member.id}
               className="glass-panel"
               style={{
-                padding: '1.5rem',
+                padding: '1.35rem',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
-                gap: '1.25rem',
+                justifyContent: 'space-between',
+                gap: '1.1rem',
                 borderLeft: submitted ? '4px solid var(--accent-success)' : '4px solid var(--accent-warning)',
                 position: 'relative'
               }}
@@ -129,10 +181,7 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>{member.name}</h3>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', fontWeight: '500' }}>
-                      {member.sub_role}
-                    </span>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '600' }}>{member.name}</h3>
                   </div>
 
                   {submitted ? (
@@ -140,33 +189,33 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.35rem',
-                      padding: '0.35rem 0.75rem',
+                      padding: '0.3rem 0.65rem',
                       background: 'rgba(52, 211, 153, 0.15)',
                       color: 'var(--accent-success)',
                       borderRadius: 'var(--radius-full)',
-                      fontSize: '0.8rem',
+                      fontSize: '0.775rem',
                       fontWeight: '600'
                     }}>
-                      <CheckCircle2 size={14} /> Submitted
+                      <CheckCircle2 size={13} /> Submitted
                     </span>
                   ) : (
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.35rem',
-                      padding: '0.35rem 0.75rem',
+                      padding: '0.3rem 0.65rem',
                       background: 'rgba(251, 191, 36, 0.15)',
                       color: 'var(--accent-warning)',
                       borderRadius: 'var(--radius-full)',
-                      fontSize: '0.8rem',
+                      fontSize: '0.775rem',
                       fontWeight: '600'
                     }}>
-                      <Clock size={14} /> Pending
+                      <Clock size={13} /> Pending
                     </span>
                   )}
                 </div>
 
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
                   <Phone size={14} /> {member.phone}
                 </div>
 
@@ -177,13 +226,13 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
                     background: 'rgba(248, 113, 113, 0.15)',
                     color: 'var(--accent-danger)',
                     borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.825rem',
+                    fontSize: '0.8rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
                     fontWeight: '600'
                   }}>
-                    <AlertTriangle size={15} /> Requires Elder Guidance/Approval
+                    <AlertTriangle size={14} /> Requires Elder Guidance/Approval
                   </div>
                 )}
               </div>
@@ -193,18 +242,18 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
                 <a
                   href={generateSmsLink(member)}
                   className="btn btn-primary"
-                  style={{ flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                  style={{ flex: 1, padding: '0.45rem 0.75rem', fontSize: '0.825rem' }}
                 >
-                  <MessageSquare size={16} /> 1-Click SMS
+                  <MessageSquare size={15} /> 1-Click SMS
                 </a>
 
                 <button
                   onClick={() => handleCopySms(member, member.id)}
                   className="btn btn-secondary"
                   title="Copy reminder text to clipboard"
-                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.825rem' }}
                 >
-                  {copiedId === member.id ? <CheckCircle2 size={16} color="var(--accent-success)" /> : <Copy size={16} />}
+                  {copiedId === member.id ? <CheckCircle2 size={15} color="var(--accent-success)" /> : <Copy size={15} />}
                 </button>
               </div>
 
@@ -216,3 +265,4 @@ export default function CoordinatorTracker({ cycles, selectedCycle, onCycleChang
     </div>
   );
 }
+

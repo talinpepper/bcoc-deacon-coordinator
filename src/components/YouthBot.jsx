@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, Bot, CheckCircle2, ShieldAlert, Sparkles, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, User, Bot, CheckCircle2, ShieldAlert, Sparkles, MessageSquare, Loader2, Save, RotateCcw, Edit3 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const QUESTIONS = [
@@ -53,7 +53,10 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
   const [chatLog, setChatLog] = useState([]);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [draftSavedMsg, setDraftSavedMsg] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showQuestionSelector, setShowQuestionSelector] = useState(false);
 
   const chatEndRef = useRef(null);
 
@@ -68,17 +71,100 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLog]);
 
-  const handleSelectMember = (member) => {
+  const handleSelectMember = async (member) => {
     setSelectedMember(member);
+    setIsCompleted(false);
+    setShowQuestionSelector(false);
+
+    let existingData = null;
+    if (activeCycle) {
+      try {
+        const res = await fetch(`/api/submissions/${member.id}/${activeCycle.id}`);
+        if (res.ok) {
+          existingData = await res.json();
+        }
+      } catch (err) {
+        console.error('Error fetching existing submission:', err);
+      }
+    }
+
+    if (existingData) {
+      setAnswers({
+        general_updates: existingData.general_updates || '',
+        wins_encouragements: existingData.wins_encouragements || '',
+        challenges_obstacles: existingData.challenges_obstacles || '',
+        budget_updates: existingData.budget_updates || '',
+        elder_approval_items: existingData.elder_approval_items || '',
+        prayer_requests: existingData.prayer_requests || ''
+      });
+
+      const restoredLog = [
+        {
+          sender: 'bot',
+          text: `Welcome back, ${member.name}! 👋 I retrieved your saved updates for the ${activeCycle ? activeCycle.title : 'Elders Report'}.`
+        }
+      ];
+
+      let lastAnsweredIdx = -1;
+      QUESTIONS.forEach((q, idx) => {
+        const val = existingData[q.key];
+        if (val && val.trim() !== '') {
+          lastAnsweredIdx = idx;
+          restoredLog.push({
+            sender: 'bot',
+            text: `**${q.title}**\n${q.subtitle}`
+          });
+          restoredLog.push({
+            sender: 'user',
+            text: val
+          });
+        }
+      });
+
+      const nextIdx = lastAnsweredIdx + 1;
+      if (nextIdx < QUESTIONS.length) {
+        const nextQ = QUESTIONS[nextIdx];
+        restoredLog.push({
+          sender: 'bot',
+          text: `Continuing with question ${nextIdx + 1} of ${QUESTIONS.length}:\n**${nextQ.title}**\n${nextQ.subtitle}`
+        });
+        setCurrentQuestionIndex(nextIdx);
+      } else {
+        setIsCompleted(true);
+        restoredLog.push({
+          sender: 'bot',
+          text: `🎉 You have completed your updates! Use "Jump to Question" above to revise any specific section, or "Start Over" to clear and start fresh.`
+        });
+        setCurrentQuestionIndex(QUESTIONS.length);
+      }
+      setChatLog(restoredLog);
+    } else {
+      startFreshSurvey(member);
+    }
+  };
+
+  const startFreshSurvey = (member) => {
+    const targetMember = member || selectedMember;
     const firstQ = QUESTIONS[0];
+    setCurrentQuestionIndex(0);
+    setIsCompleted(false);
+    setShowQuestionSelector(false);
+    setAnswers({
+      general_updates: '',
+      wins_encouragements: '',
+      challenges_obstacles: '',
+      budget_updates: '',
+      elder_approval_items: '',
+      prayer_requests: ''
+    });
     setChatLog([
       {
         sender: 'bot',
-        text: `Hello ${member.name}! 👋 I am the BCoC Youth Ministry Coordinator Assistant serving alongside Talin Pepper.`
+        text: `Hello ${targetMember.name}! 👋 I am the BCoC Youth Ministry Coordinator Assistant serving alongside Talin Pepper.`
       },
       {
         sender: 'bot',
-        text: `We are preparing our brief 5-10 minute presentation for the elders for the ${activeCycle ? activeCycle.title : 'upcoming meeting'}. Thank you for taking 2 minutes to keep your plans and needs visible!`
+        text: `We are preparing our brief 5-10 minute presentation for the elders for the ${activeCycle ? activeCycle.title : 'upcoming meeting'}. Thank you for taking 5-7 minutes to keep your plans and needs visible!`
       },
       {
         sender: 'bot',
@@ -87,19 +173,74 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
     ]);
   };
 
+  const handleRestartSurvey = async () => {
+    if (!window.confirm(`Are you sure you want to clear your updates and start the survey over from scratch?`)) return;
+
+    if (selectedMember && activeCycle) {
+      try {
+        await fetch(`/api/submissions/${selectedMember.id}/${activeCycle.id}`, { method: 'DELETE' });
+        if (onSubmissionComplete) onSubmissionComplete();
+      } catch (err) {
+        console.error('Failed to reset submission:', err);
+      }
+    }
+    startFreshSurvey();
+  };
+
+  const handleJumpToQuestion = (qIndex) => {
+    setShowQuestionSelector(false);
+    setIsCompleted(false);
+    setCurrentQuestionIndex(qIndex);
+    const q = QUESTIONS[qIndex];
+    
+    setChatLog(prev => [
+      ...prev,
+      {
+        sender: 'bot',
+        text: `🔄 Switched to section ${qIndex + 1} of ${QUESTIONS.length}:\n**${q.title}**\n${q.subtitle}${answers[q.key] ? `\n\n*Current entry:* "${answers[q.key]}"` : ''}`
+      }
+    ]);
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedMember || !activeCycle) return;
+    setIsDraftSaving(true);
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team_member_id: selectedMember.id,
+          cycle_id: activeCycle.id,
+          ...answers,
+          requires_elder_escalation: Boolean(
+            answers.elder_approval_items && 
+            answers.elder_approval_items.trim() !== '' && 
+            answers.elder_approval_items.toLowerCase() !== 'none'
+          )
+        })
+      });
+      if (response.ok) {
+        setDraftSavedMsg(true);
+        setTimeout(() => setDraftSavedMsg(false), 3000);
+        if (onSubmissionComplete) onSubmissionComplete();
+      }
+    } catch (err) {
+      console.error('Draft save failed:', err);
+    } finally {
+      setIsDraftSaving(false);
+    }
+  };
+
   const handleSendAnswer = async () => {
     if (!currentInput.trim() && currentInput.toLowerCase() !== 'none') return;
 
     const answerText = currentInput.trim();
     const currentQ = QUESTIONS[currentQuestionIndex];
 
-    // Append answer to existing answer if responding to follow-up
-    const existingVal = answers[currentQ.key] || '';
-    const updatedVal = existingVal ? `${existingVal}\n\n[Clarification]: ${answerText}` : answerText;
-
     const updatedAnswers = {
       ...answers,
-      [currentQ.key]: updatedVal
+      [currentQ.key]: answerText
     };
     setAnswers(updatedAnswers);
 
@@ -111,14 +252,33 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
     setChatLog(updatedLog);
     setCurrentInput('');
 
-    // If currently answering a follow-up, proceed to next main question
+    // Auto-save
+    try {
+      await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team_member_id: selectedMember.id,
+          cycle_id: activeCycle.id,
+          ...updatedAnswers,
+          requires_elder_escalation: Boolean(
+            updatedAnswers.elder_approval_items && 
+            updatedAnswers.elder_approval_items.trim() !== '' && 
+            updatedAnswers.elder_approval_items.toLowerCase() !== 'none'
+          )
+        })
+      });
+      if (onSubmissionComplete) onSubmissionComplete();
+    } catch (e) {
+      console.error('Auto-save error:', e);
+    }
+
     if (isAskingFollowUp) {
       setIsAskingFollowUp(false);
       proceedToNextQuestion(currentQuestionIndex + 1, updatedLog, updatedAnswers);
       return;
     }
 
-    // Check with AI if clarifying follow-up would add value
     setIsAiThinking(true);
     try {
       const res = await fetch('/api/ai/followup', {
@@ -153,7 +313,6 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
       setIsAiThinking(false);
     }
 
-    // No follow-up needed, move to next main question
     proceedToNextQuestion(currentQuestionIndex + 1, updatedLog, updatedAnswers);
   };
 
@@ -170,7 +329,6 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
       setCurrentQuestionIndex(nextIndex);
       setChatLog(newLog);
     } else {
-      // Finished all questions
       setCurrentQuestionIndex(nextIndex);
       submitFinalAnswers(finalAnswers, log);
     }
@@ -236,7 +394,15 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
-            {teamMembers.filter(m => m.role !== 'elder').map(member => (
+            {teamMembers
+              .filter(m => m.role !== 'elder')
+              .sort((a, b) => {
+                const lastA = a.name.split(' ').slice(-1)[0];
+                const lastB = b.name.split(' ').slice(-1)[0];
+                if (lastA !== lastB) return lastA.localeCompare(lastB);
+                return a.name.localeCompare(b.name);
+              })
+              .map(member => (
               <button
                 key={member.id}
                 onClick={() => handleSelectMember(member)}
@@ -276,44 +442,113 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '75vh' }}>
+      <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
         
         {/* Chat Header */}
         <div style={{
-          padding: '1.25rem 1.5rem',
+          padding: '1rem 1.25rem',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: '0.75rem',
           background: 'rgba(15, 23, 42, 0.6)',
           borderTopLeftRadius: 'var(--radius-lg)',
           borderTopRightRadius: 'var(--radius-lg)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{
-              padding: '0.6rem',
+              padding: '0.5rem',
               background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
               color: '#ffffff',
               borderRadius: '50%'
             }}>
-              <Bot size={22} />
+              <Bot size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem' }}>Youth Ministry Coordinator Assistant</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              <h3 style={{ fontSize: '1.05rem', lineHeight: 1.2 }}>Youth Ministry Assistant</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 Reporting for: <strong>{selectedMember.name}</strong>
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => setSelectedMember(null)}
-            className="btn btn-secondary"
-            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-          >
-            Change Name
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowQuestionSelector(!showQuestionSelector)}
+              className="btn btn-secondary"
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              title="Jump to any question to view or edit your response"
+            >
+              <Edit3 size={14} /> Jump to Question
+            </button>
+
+            <button
+              onClick={handleRestartSurvey}
+              className="btn btn-secondary"
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              title="Clear all responses and restart survey"
+            >
+              <RotateCcw size={14} /> Start Over
+            </button>
+
+            <button
+              onClick={handleSaveDraft}
+              disabled={isDraftSaving}
+              className="btn btn-secondary"
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              title="Save progress now to finish later"
+            >
+              <Save size={14} /> {draftSavedMsg ? 'Saved!' : 'Save'}
+            </button>
+
+            <button
+              onClick={() => setSelectedMember(null)}
+              className="btn btn-secondary"
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+            >
+              Change Name
+            </button>
+          </div>
         </div>
+
+        {/* Question Selector Overlay Panel */}
+        {showQuestionSelector && (
+          <div style={{
+            background: 'var(--bg-dark)',
+            padding: '1rem',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: '0.5rem',
+            animation: 'fade-in 0.2s ease-in-out'
+          }}>
+            {QUESTIONS.map((q, idx) => (
+              <button
+                key={q.key}
+                onClick={() => handleJumpToQuestion(idx)}
+                style={{
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                  background: currentQuestionIndex === idx ? 'var(--accent-primary)' : 'var(--bg-card)',
+                  color: '#ffffff',
+                  textAlign: 'left',
+                  fontSize: '0.825rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>{idx + 1}. {q.title.split(' ')[1] || q.title}</span>
+                {answers[q.key] ? <CheckCircle2 size={13} color="var(--accent-success)" /> : null}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Chat Messages Log */}
         <div style={{
@@ -421,19 +656,37 @@ export default function YouthBot({ teamMembers, cycles, onSubmissionComplete }) 
               </button>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.5rem', textAlign: 'center' }}>
-              Tip: Press Enter to submit. Type "None" if you don't have updates for a specific question.
+              Tip: Press Enter to submit. Use "Jump to Question" above anytime to revise a section!
             </p>
           </div>
         ) : (
           <div style={{
-            padding: '1.5rem',
+            padding: '1.25rem',
             borderTop: '1px solid var(--border-color)',
             textAlign: 'center',
-            background: 'rgba(52, 211, 153, 0.1)'
+            background: 'rgba(52, 211, 153, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '1.5rem'
           }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-success)', fontWeight: '600' }}>
-              <CheckCircle2 size={20} /> Submission Complete!
+              <CheckCircle2 size={20} /> Updates Saved & Complete!
             </div>
+            <button
+              onClick={() => setShowQuestionSelector(!showQuestionSelector)}
+              className="btn btn-secondary"
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            >
+              <Edit3 size={15} /> Edit Answers
+            </button>
+            <button
+              onClick={handleRestartSurvey}
+              className="btn btn-secondary"
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            >
+              <RotateCcw size={15} /> Start Over
+            </button>
           </div>
         )}
 

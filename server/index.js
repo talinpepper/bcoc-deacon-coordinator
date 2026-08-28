@@ -3,7 +3,51 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config(); // Load .env variables
 const db = require('./db');
+const { sendToGoogleSheet, fetchFromGoogleSheet } = require('./googleDriveSync');
 const { GoogleGenAI } = require('@google/genai');
+
+// Auto-restore any submissions saved in Google Drive / Sheets back into SQLite on startup
+async function restoreSubmissionsFromGoogleSheet() {
+  try {
+    const rows = await fetchFromGoogleSheet();
+    if (Array.isArray(rows) && rows.length > 0) {
+      for (const row of rows) {
+        if (!row.member_name || !row.cycle_id) continue;
+        const member = db.prepare('SELECT id FROM team_members WHERE name LIKE ?').get(row.member_name);
+        if (!member) continue;
+
+        const cycleId = parseInt(row.cycle_id) || 1;
+        const existing = db.prepare('SELECT id FROM submissions WHERE team_member_id = ? AND cycle_id = ?')
+          .get(member.id, cycleId);
+
+        if (!existing) {
+          db.prepare(`
+            INSERT INTO submissions (
+              team_member_id, cycle_id, general_updates, wins_encouragements,
+              challenges_obstacles, budget_updates, elder_approval_items,
+              prayer_requests, submitted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            member.id,
+            cycleId,
+            row.general_updates || '',
+            row.wins_encouragements || '',
+            row.challenges_obstacles || '',
+            row.budget_updates || '',
+            row.elder_approval_items || '',
+            row.prayer_requests || '',
+            row.submitted_at || new Date().toISOString()
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to auto-restore from Google Sheet:', err);
+  }
+}
+
+// Run restore on startup
+restoreSubmissionsFromGoogleSheet();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,10 +67,15 @@ if (geminiApiKey && geminiApiKey.trim() !== '') {
 
 // API Routes
 
-// 1. Get all team members (coordinators, ministers, deacons, elders)
+// 1. Get all team members (coordinators, ministers, deacons, elders, spouses)
 app.get('/api/team', (req, res) => {
   try {
-    const team = db.prepare('SELECT * FROM team_members ORDER BY role DESC, name ASC').all();
+    const team = db.prepare(`
+      SELECT *, 
+        substr(name, instr(name, ' ') + 1) as last_name
+      FROM team_members 
+      ORDER BY last_name ASC, role DESC, name ASC
+    `).all();
     res.json(team);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -47,7 +96,7 @@ app.get('/api/cycles', (req, res) => {
 app.get('/api/cycles/:cycleId/status', (req, res) => {
   const { cycleId } = req.params;
   try {
-    const team = db.prepare("SELECT * FROM team_members WHERE role IN ('coordinator', 'minister', 'deacon') ORDER BY role DESC, name ASC").all();
+    const team = db.prepare("SELECT * FROM team_members WHERE role != 'elder' ORDER BY name ASC").all();
     const submissions = db.prepare('SELECT * FROM submissions WHERE cycle_id = ?').all(cycleId);
 
     const submissionMap = new Map();
@@ -104,6 +153,29 @@ Only output raw JSON.`;
   }
 });
 
+// 4b. Get existing submission/draft for a specific team member and cycle
+app.get('/api/submissions/:memberId/:cycleId', (req, res) => {
+  const { memberId, cycleId } = req.params;
+  try {
+    const submission = db.prepare('SELECT * FROM submissions WHERE team_member_id = ? AND cycle_id = ?')
+      .get(memberId, cycleId);
+    res.json(submission || null);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4c. Delete/Restart submission for a specific team member and cycle
+app.delete('/api/submissions/:memberId/:cycleId', (req, res) => {
+  const { memberId, cycleId } = req.params;
+  try {
+    db.prepare('DELETE FROM submissions WHERE team_member_id = ? AND cycle_id = ?').run(memberId, cycleId);
+    res.json({ message: 'Submission reset successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 5. Save or update a deacon/minister/coordinator submission
 app.post('/api/submissions', (req, res) => {
   const {
@@ -125,6 +197,23 @@ app.post('/api/submissions', (req, res) => {
   try {
     const existing = db.prepare('SELECT id FROM submissions WHERE team_member_id = ? AND cycle_id = ?')
       .get(team_member_id, cycle_id);
+
+    // Dual write to Google Drive Sheet backup
+    try {
+      const member = db.prepare('SELECT name FROM team_members WHERE id = ?').get(team_member_id);
+      sendToGoogleSheet({
+        member_name: member ? member.name : `Member ${team_member_id}`,
+        cycle_id,
+        general_updates,
+        wins_encouragements,
+        challenges_obstacles,
+        budget_updates,
+        elder_approval_items,
+        prayer_requests
+      });
+    } catch (sheetErr) {
+      console.error('Google Sheet sync background error:', sheetErr);
+    }
 
     if (existing) {
       const updateStmt = db.prepare(`
@@ -189,7 +278,7 @@ app.get('/api/cycles/:cycleId/summary', async (req, res) => {
       ORDER BY t.role DESC, t.name ASC
     `).all(cycleId);
 
-    const totalExpected = db.prepare("SELECT COUNT(*) as cnt FROM team_members WHERE role IN ('coordinator', 'minister', 'deacon')").get().cnt;
+    const totalExpected = db.prepare("SELECT COUNT(*) as cnt FROM team_members WHERE role != 'elder'").get().cnt;
 
     let aiPolishedSummary = null;
 
